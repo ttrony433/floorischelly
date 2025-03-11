@@ -17,7 +17,7 @@ const ctx = canvas.getContext('2d');
 let width, height;
 
 const lavaImg = new Image();
-lavaImg.src = 'Lava.png'; // Put your custom lava image URL
+lavaImg.src = 'YOUR_LAVA_IMAGE_URL_HERE.png'; // Put your lava PNG URL here
 
 let keys = {};
 document.addEventListener('keydown', e => keys[e.key] = true);
@@ -35,18 +35,18 @@ window.addEventListener('resize', resize);
 function resetGame() {
   player = {
     x: width / 2,
-    y: height - 100,
+    y: height - 150,
     w: 40,
     h: 40,
     vy: 0,
     grounded: false
   };
   platforms = [];
-  for (let i = 0; i < 20; i++) addPlatform(height - i * 150);
+  for (let i = 0; i < 40; i++) addPlatform(height - i * 120); // More platforms, closer together
   lava = {
-    y: height + 200, // Start below the screen
-    speed: 0.3,
-    delay: 5000, // 5 seconds delay
+    y: height + 200,
+    speed: 0.03, // Slower lava
+    delay: 5000, // 5 second delay
     startTime: Date.now()
   };
   maxHeight = 0;
@@ -55,9 +55,9 @@ function resetGame() {
 
 function addPlatform(y) {
   let platform = {
-    x: Math.random() * (width - 100),
+    x: Math.random() * (width - 150), // wider spread
     y: y,
-    w: 100,
+    w: 120,
     h: 20
   };
   platforms.push(platform);
@@ -67,18 +67,18 @@ function update() {
   if (gameOver) return;
 
   // Controls
-  if (keys['ArrowLeft'] || keys['a']) player.x -= 5;
-  if (keys['ArrowRight'] || keys['d']) player.x += 5;
+  if (keys['ArrowLeft'] || keys['a']) player.x -= 4; // slower movement
+  if (keys['ArrowRight'] || keys['d']) player.x += 4;
   if ((keys[' '] || keys['w'] || keys['ArrowUp']) && player.grounded) {
-    player.vy = -12;
+    player.vy = -10; // controlled jump
     player.grounded = false;
   }
 
   // Gravity
-  player.vy += 0.5;
+  player.vy += 0.4;
   player.y += player.vy;
 
-  // Collision with platforms
+  // Platform Collision
   player.grounded = false;
   platforms.forEach(p => {
     if (player.x < p.x + p.w && player.x + player.w > p.x &&
@@ -89,11 +89,11 @@ function update() {
     }
   });
 
-  // Prevent going off sides
+  // Stay in bounds
   if (player.x < 0) player.x = 0;
   if (player.x + player.w > width) player.x = width - player.w;
 
-  // Scroll screen up as player climbs
+  // Camera follow effect
   let scroll = Math.min(0, height / 2 - player.y);
   if (scroll < 0) {
     player.y += -scroll;
@@ -102,23 +102,23 @@ function update() {
     maxHeight += -scroll;
   }
 
-  // Add new platforms as player climbs
-  if (platforms[platforms.length - 1].y > 0) addPlatform(platforms[platforms.length - 1].y - 150);
+  // Add new platforms as you climb
+  while (platforms[platforms.length - 1].y > 0) addPlatform(platforms[platforms.length - 1].y - 120);
 
-  // Lava movement
+  // Lava movement after delay
   if (Date.now() - lava.startTime > lava.delay) {
     lava.y -= lava.speed;
-    lava.speed += 0.0002; // Gradually get faster
+    lava.speed += 0.00001; // gentle acceleration
   }
 
-  // Game over check
+  // Game over if lava catches up
   if (player.y + player.h > lava.y) gameOver = true;
 }
 
 function draw() {
   ctx.clearRect(0, 0, width, height);
 
-  // Background
+  // Background color
   ctx.fillStyle = '#333';
   ctx.fillRect(0, 0, width, height);
 
@@ -126,27 +126,28 @@ function draw() {
   ctx.fillStyle = '#888';
   platforms.forEach(p => ctx.fillRect(p.x, p.y, p.w, p.h));
 
-  // Player
+  // Player face
   ctx.fillStyle = 'yellow';
   ctx.beginPath();
   ctx.arc(player.x + player.w / 2, player.y + player.h / 2, player.w / 2, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = 'black';
   ctx.beginPath();
-  ctx.arc(player.x + player.w / 3, player.y + player.h / 3, 5, 0, Math.PI * 2); // Left eye
-  ctx.arc(player.x + 2 * player.w / 3, player.y + player.h / 3, 5, 0, Math.PI * 2); // Right eye
+  ctx.arc(player.x + player.w / 3, player.y + player.h / 3, 5, 0, Math.PI * 2); // left eye
+  ctx.arc(player.x + 2 * player.w / 3, player.y + player.h / 3, 5, 0, Math.PI * 2); // right eye
   ctx.fill();
 
-  // Lava
-  ctx.drawImage(lavaImg, 0, lava.y, width, height - lava.y);
+  // Lava (resized)
+  const lavaHeight = height - lava.y;
+  ctx.drawImage(lavaImg, 0, lava.y, width, lavaHeight);
 
-  // Score
+  // Score in meters (realistic)
   ctx.fillStyle = 'white';
   ctx.font = '20px Arial';
-  ctx.fillText('Height: ' + Math.floor(maxHeight), 20, 30);
-  ctx.fillText('High Score: ' + Math.floor(heightScore || 0), 20, 60);
+  ctx.fillText('Height: ' + Math.floor(maxHeight / 10) + 'm', 20, 30);
+  ctx.fillText('High Score: ' + Math.floor((heightScore || 0) / 10) + 'm', 20, 60);
 
-  // Game Over
+  // Game over screen
   if (gameOver) {
     heightScore = Math.max(heightScore || 0, maxHeight);
     ctx.fillStyle = 'red';
@@ -154,7 +155,7 @@ function draw() {
     ctx.textAlign = 'center';
     ctx.fillText('LAVA GOT YOU. YOU LOSE!', width / 2, height / 2);
     ctx.font = '30px Arial';
-    ctx.fillText('Your Height: ' + Math.floor(maxHeight) + ' | High Score: ' + Math.floor(heightScore), width / 2, height / 2 + 50);
+    ctx.fillText('Your Height: ' + Math.floor(maxHeight / 10) + 'm | High Score: ' + Math.floor(heightScore / 10) + 'm', width / 2, height / 2 + 50);
     ctx.fillText("Press 'R' to Restart", width / 2, height / 2 + 100);
   }
 }
