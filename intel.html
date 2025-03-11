@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>The Floor is Lava</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #222; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let width, height;
+
+const lavaImg = new Image();
+lavaImg.src = 'Lava.png'; // Put your custom lava image URL
+
+let keys = {};
+document.addEventListener('keydown', e => keys[e.key] = true);
+document.addEventListener('keyup', e => keys[e.key] = false);
+
+let player, platforms, lava, gameOver, heightScore, maxHeight, lavaDelay;
+
+function resize() {
+  width = canvas.width = window.innerWidth;
+  height = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+function resetGame() {
+  player = {
+    x: width / 2,
+    y: height - 100,
+    w: 40,
+    h: 40,
+    vy: 0,
+    grounded: false
+  };
+  platforms = [];
+  for (let i = 0; i < 20; i++) addPlatform(height - i * 150);
+  lava = {
+    y: height + 200, // Start below the screen
+    speed: 0.3,
+    delay: 5000, // 5 seconds delay
+    startTime: Date.now()
+  };
+  maxHeight = 0;
+  gameOver = false;
+}
+
+function addPlatform(y) {
+  let platform = {
+    x: Math.random() * (width - 100),
+    y: y,
+    w: 100,
+    h: 20
+  };
+  platforms.push(platform);
+}
+
+function update() {
+  if (gameOver) return;
+
+  // Controls
+  if (keys['ArrowLeft'] || keys['a']) player.x -= 5;
+  if (keys['ArrowRight'] || keys['d']) player.x += 5;
+  if ((keys[' '] || keys['w'] || keys['ArrowUp']) && player.grounded) {
+    player.vy = -12;
+    player.grounded = false;
+  }
+
+  // Gravity
+  player.vy += 0.5;
+  player.y += player.vy;
+
+  // Collision with platforms
+  player.grounded = false;
+  platforms.forEach(p => {
+    if (player.x < p.x + p.w && player.x + player.w > p.x &&
+        player.y + player.h < p.y + 10 && player.y + player.h + player.vy >= p.y) {
+      player.y = p.y - player.h;
+      player.vy = 0;
+      player.grounded = true;
+    }
+  });
+
+  // Prevent going off sides
+  if (player.x < 0) player.x = 0;
+  if (player.x + player.w > width) player.x = width - player.w;
+
+  // Scroll screen up as player climbs
+  let scroll = Math.min(0, height / 2 - player.y);
+  if (scroll < 0) {
+    player.y += -scroll;
+    platforms.forEach(p => p.y += -scroll);
+    lava.y += -scroll;
+    maxHeight += -scroll;
+  }
+
+  // Add new platforms as player climbs
+  if (platforms[platforms.length - 1].y > 0) addPlatform(platforms[platforms.length - 1].y - 150);
+
+  // Lava movement
+  if (Date.now() - lava.startTime > lava.delay) {
+    lava.y -= lava.speed;
+    lava.speed += 0.0002; // Gradually get faster
+  }
+
+  // Game over check
+  if (player.y + player.h > lava.y) gameOver = true;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, width, height);
+
+  // Background
+  ctx.fillStyle = '#333';
+  ctx.fillRect(0, 0, width, height);
+
+  // Platforms
+  ctx.fillStyle = '#888';
+  platforms.forEach(p => ctx.fillRect(p.x, p.y, p.w, p.h));
+
+  // Player
+  ctx.fillStyle = 'yellow';
+  ctx.beginPath();
+  ctx.arc(player.x + player.w / 2, player.y + player.h / 2, player.w / 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'black';
+  ctx.beginPath();
+  ctx.arc(player.x + player.w / 3, player.y + player.h / 3, 5, 0, Math.PI * 2); // Left eye
+  ctx.arc(player.x + 2 * player.w / 3, player.y + player.h / 3, 5, 0, Math.PI * 2); // Right eye
+  ctx.fill();
+
+  // Lava
+  ctx.drawImage(lavaImg, 0, lava.y, width, height - lava.y);
+
+  // Score
+  ctx.fillStyle = 'white';
+  ctx.font = '20px Arial';
+  ctx.fillText('Height: ' + Math.floor(maxHeight), 20, 30);
+  ctx.fillText('High Score: ' + Math.floor(heightScore || 0), 20, 60);
+
+  // Game Over
+  if (gameOver) {
+    heightScore = Math.max(heightScore || 0, maxHeight);
+    ctx.fillStyle = 'red';
+    ctx.font = '40px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('LAVA GOT YOU. YOU LOSE!', width / 2, height / 2);
+    ctx.font = '30px Arial';
+    ctx.fillText('Your Height: ' + Math.floor(maxHeight) + ' | High Score: ' + Math.floor(heightScore), width / 2, height / 2 + 50);
+    ctx.fillText("Press 'R' to Restart", width / 2, height / 2 + 100);
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (gameOver && e.key === 'r') resetGame();
+});
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+resetGame();
+gameLoop();
+</script>
+</body>
+</html>
